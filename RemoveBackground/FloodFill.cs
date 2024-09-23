@@ -75,17 +75,24 @@ namespace RemoveBackground
                 int startIndex = GetIndex(width, in startPoint);
                 uint refColor = pixels[startIndex];
                 // stack for recursion
-                Queue<int> stack = new([GetIndex(width, in startPoint)]);
+                const int RINGBUFFER_SIZE = 256 * 1024;
+                int* ringBuffer = stackalloc int[RINGBUFFER_SIZE];
+                uint ringWrite = 0;
+                uint ringRead = 0;
+                ringBuffer[ringWrite] = GetIndex(width, in startPoint);
+                ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
 
-                int pixelsVisited = 0;
-                int pixelsSelected = 0;
+                uint pixelsVisited = 0;
+                uint pixelsSelected = 0;
+                uint maxBufferSize = 0;
 
                 // recursion
-                while (stack.Count > 0)
+                while (ringRead != ringWrite)
                 {
                     pixelsVisited++;
 
-                    int index = stack.Dequeue();
+                    int index = ringBuffer[ringRead];
+                    ringRead = (ringRead + 1) % RINGBUFFER_SIZE;
                     uint color = pixels[index];
 
                     // break out if already visited
@@ -122,23 +129,36 @@ namespace RemoveBackground
 
                     // three above
                     if (isNotTop)
-                    { 
+                    {
                         int indexAbove = index - width;
                         // left
                         if (isNotLeft)
-                            stack.Enqueue(indexAbove - 1);
+                        {
+                            ringBuffer[ringWrite] = indexAbove - 1;
+                            ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+                        }
                         // top
-                        stack.Enqueue(indexAbove);
+                        ringBuffer[ringWrite] = indexAbove;
+                        ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
                         // right
                         if (isNotRight)
-                            stack.Enqueue(indexAbove + 1);
+                        {
+                            ringBuffer[ringWrite] = indexAbove + 1;
+                            ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+                        }
                     }
 
                     // left + right
                     if (isNotLeft)
-                        stack.Enqueue(index - 1);
+                    {
+                        ringBuffer[ringWrite] = index - 1;
+                        ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+                    }
                     if (isNotRight)
-                        stack.Enqueue(index + 1);
+                    {
+                        ringBuffer[ringWrite] = index + 1;
+                        ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+                    }
 
                     // three bewlo
                     if (isNotBottom)
@@ -146,16 +166,27 @@ namespace RemoveBackground
                         int indexBelow = index + width;
                         // left
                         if (isNotLeft)
-                            stack.Enqueue(indexBelow - 1);
+                        {
+                            ringBuffer[ringWrite] = indexBelow - 1;
+                            ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+                        }
                         // bottom
-                        stack.Enqueue(indexBelow);
+                        ringBuffer[ringWrite] = indexBelow;
+                        ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
                         // right
                         if (isNotRight)
-                            stack.Enqueue(indexBelow + 1);
+                        {
+                            ringBuffer[ringWrite] = indexBelow + 1;
+                            ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+                        }
                     }
+
+                    uint bufferSize = unchecked((ringWrite - ringRead) % RINGBUFFER_SIZE);
+                    maxBufferSize = bufferSize > maxBufferSize ? bufferSize : maxBufferSize;
                 }
 
                 Debug.WriteLine($"Overscan factor {(double)pixelsVisited / pixelsSelected:F01}x (selected = {pixelsSelected:N0}, visited = {pixelsVisited:N0})");
+                Debug.WriteLine($"Max buffer size = {maxBufferSize}");
             }
 
             return new FloodFillResult()
