@@ -1,43 +1,101 @@
+using System.Diagnostics;
+
 namespace RemoveBackground
 {
     public partial class Form1 : Form
     {
-        private struct SelectedPoint(Point pictureBoxCoords, Point? imageCoords)
+        private struct SelectedPoint(PointF relpictureBoxCoords, Point? imageCoords)
         {
             /// <summary>
             /// Relative to its size
             /// </summary>
-            public Point PictureboxCoords { get; set; } = pictureBoxCoords;
+            public PointF RelPictureboxCoords { get; set; } = relpictureBoxCoords;
+
             public Point? ImageCoords { get; set; } = imageCoords;
         }
 
         private SelectedPoint? LastSelectedPoint { get; set; } = null;
-
-        private Size LastPictureBoxInputSize { get; set; }
+        private FloodFillResult? LastFloodFillResult { get; set; } = null;
 
         public Form1()
         {
             InitializeComponent();
 
-            LastPictureBoxInputSize = PictureBox_Input.Size;
+            PictureBox_Input_MouseClick(this, new MouseEventArgs(MouseButtons.Left, 1, PictureBox_Input.Width / 2, PictureBox_Input.Height / 2, 0));
         }
+
+        private void Timer_CheckClipboard_Tick(object sender, EventArgs e)
+        {
+            Button_FromClipboard.Enabled = Clipboard.ContainsImage();
+        }
+
 
         private void Button_LoadImage_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog() != DialogResult.OK)
                 return;
+            SetImage(Image.FromFile(openFileDialog1.FileName));
+        }
 
-            PictureBox_Input.Image = Image.FromFile(openFileDialog1.FileName);
+        private void Button_FromClipboard_Click(object sender, EventArgs e)
+        {
+            Image? image = Clipboard.GetImage();
+            if (image is null)
+                return;
+
+            SetImage(image);
+        }
+
+        private void Form1_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data is null)
+                return;
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effect = ((string[])e.Data!.GetData(DataFormats.FileDrop)!).Length > 0 ? DragDropEffects.Move : DragDropEffects.None;
+            else if (e.Data.GetDataPresent(DataFormats.Bitmap))
+                e.Effect = DragDropEffects.Move;
+            else
+                e.Effect = DragDropEffects.None;
+        }
+
+        private void Form1_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data is null)
+                return;
+
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                Image image;
+                try
+                {
+                    image = Image.FromFile(((string[])e.Data!.GetData(DataFormats.FileDrop)!)[0]);
+                }
+                catch (Exception)
+                {
+                    return;
+                }
+                SetImage(image);
+                return;
+            }
+
+            if (e.Data.GetDataPresent(DataFormats.Bitmap))
+            {
+                SetImage((Image)e.Data.GetData(DataFormats.Bitmap)!);
+                return;
+            }
         }
 
         private void PictureBox_Input_MouseClick(object sender, MouseEventArgs e)
         {
             // convert mouse to picture coords
-            LastSelectedPoint = new SelectedPoint(e.Location, ToPictureCoords(e.Location));
+            PointF relpictureBoxCoords = new((float)e.Location.X / PictureBox_Input.Width, (float)e.Location.Y / PictureBox_Input.Height);
+            Point? imageCoords = ToImageCoords(e.Location);
+            LastSelectedPoint = new SelectedPoint(relpictureBoxCoords, imageCoords);
             if (LastSelectedPoint.Value.ImageCoords is null)
                 return;
 
-            PictureBox_Input.Invalidate();
+            PictureBox_Input.Refresh();
 
             MagicWand();
         }
@@ -47,8 +105,8 @@ namespace RemoveBackground
             if (LastSelectedPoint is null)
                 return;
 
-            int x = LastSelectedPoint.Value.PictureboxCoords.X;
-            int y = LastSelectedPoint.Value.PictureboxCoords.Y;
+            int x = (int)(LastSelectedPoint.Value.RelPictureboxCoords.X * PictureBox_Input.Width);
+            int y = (int)(LastSelectedPoint.Value.RelPictureboxCoords.Y * PictureBox_Input.Height);
 
             const int LINE_LENGTH = 20; // Length of crosshair lines
             const int LINE_THICKNESS = 2; // Thickness of crosshair lines
@@ -63,6 +121,8 @@ namespace RemoveBackground
 
         private void TrackBar_Threshold_ValueChanged(object sender, EventArgs e)
         {
+            Label_Threshold.Text = $"Threshold = {TrackBar_Threshold.Value}%";
+
             if (LastSelectedPoint is null)
                 return;
 
@@ -75,16 +135,33 @@ namespace RemoveBackground
             if (LastSelectedPoint is null)
                 return;
 
-            float scaleX = PictureBox_Input.Width / LastPictureBoxInputSize.Width;
-            float scaleY = PictureBox_Input.Height / LastPictureBoxInputSize.Height;
-
-            LastSelectedPoint.PictureboxCoords = new Point();
-
-            LastPictureBoxInputSize = PictureBox_Input.Size;
             PictureBox_Input.Refresh();
         }
 
-        private Point? ToPictureCoords(Point mouseLocation)
+        private void Button_SaveFile_Click(object sender, EventArgs e)
+        {
+            if (saveFileDialog1.ShowDialog() != DialogResult.OK)
+                return;
+
+            PictureBox_Output.Image.Save(saveFileDialog1.FileName);
+        }
+
+
+        private void Button_ToClipboard_Click(object sender, EventArgs e)
+        {
+            Clipboard.SetImage(PictureBox_Output.Image);
+        }
+
+        private void SetImage(Image image)
+        {
+            PictureBox_Input.Image = image;
+            PictureBox_Output.Image = null;
+            LastSelectedPoint = null;
+
+            PictureBox_Input.Refresh();
+        }
+
+        private Point? ToImageCoords(Point mouseLocation)
         {
             // Get PictureBox and image dimensions
             int pbWidth = PictureBox_Input.Width;
@@ -131,8 +208,13 @@ namespace RemoveBackground
             if (LastSelectedPoint is null || LastSelectedPoint.Value.ImageCoords is null)
                 throw new InvalidOperationException($"Must first set {nameof(LastSelectedPoint)} property");
 
-            var alphaMaskedResult = FloodFill.MagicWand((Bitmap)PictureBox_Input.Image, (Point)LastSelectedPoint.Value.ImageCoords, TrackBar_Threshold.Value / 100.0f);
-            PictureBox_Output.Image = alphaMaskedResult.Bitmap;
+            Stopwatch stopwatch = Stopwatch.StartNew();
+
+            LastFloodFillResult = FloodFill.MagicWand((Bitmap)PictureBox_Input.Image, (Point)LastSelectedPoint.Value.ImageCoords, TrackBar_Threshold.Value / 100.0f);
+            // crop image
+            PictureBox_Output.Image = LastFloodFillResult.Bitmap.Clone(LastFloodFillResult.ROI, System.Drawing.Imaging.PixelFormat.Undefined);
+
+            Label_ComputeTime.Text = $"Magic wand took {stopwatch.ElapsedMilliseconds} ms";
         }
     }
 }

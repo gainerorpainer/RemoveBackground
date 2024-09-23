@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -9,6 +11,12 @@ using System.Threading.Tasks;
 
 namespace RemoveBackground
 {
+    record class FloodFillResult
+    {
+        public required Bitmap Bitmap { get; internal set; }
+        public Rectangle ROI { get; internal set; }
+    }
+
     internal static class FloodFill
     {
         const uint VISITED_MASK = 0xFFu << 24;
@@ -44,13 +52,15 @@ namespace RemoveBackground
             }
         }
 
-        public unsafe static RawBitmap MagicWand(Bitmap input, Point startPoint, float threshold)
+        public unsafe static FloodFillResult MagicWand(Bitmap input, Point startPoint, float threshold)
         {
             // make a copy
             var result = new RawBitmap(input);
 
             int width = input.Width;
             int height = input.Height;
+
+            int minX = startPoint.X, minY = startPoint.Y, maxX = startPoint.X, maxY = startPoint.Y;
 
             // pin memory location
             fixed (uint* pixels = result.RawData)
@@ -67,9 +77,14 @@ namespace RemoveBackground
                 // stack for recursion
                 Queue<int> stack = new([GetIndex(width, in startPoint)]);
 
+                int pixelsVisited = 0;
+                int pixelsSelected = 0;
+
                 // recursion
                 while (stack.Count > 0)
                 {
+                    pixelsVisited++;
+
                     int index = stack.Dequeue();
                     uint color = pixels[index];
 
@@ -81,22 +96,33 @@ namespace RemoveBackground
                     pixels[index] = (color & ~VISITED_MASK) | IS_VISITED_VALUE;
 
                     // break out if difference is too high
-                    float colorDiff = GetDifference(color, refColor) / MAX_DIFFERENCE;
+                    float colorDiff = MathF.Sqrt(GetDifference(color, refColor) / MAX_DIFFERENCE);
                     if (colorDiff > threshold)
                         continue;
 
-                    // add neighbours
-                    int colIndex = index % input.Width;
-                    int lineIndex = index / input.Width;
+                    pixelsSelected++;
 
-                    bool isNotTop = lineIndex > 0;
-                    bool isNotLeft = colIndex > 0;
-                    bool isNotBottom = lineIndex < height - 1;
-                    bool isNotRight = colIndex < width - 1;
+                    // update roi
+                    int x = index % input.Width;
+                    int y = index / input.Width;
+                    if (x < minX)
+                        minX = x;
+                    if (y < minY)
+                        minY = y;
+                    if (x > maxX)
+                        maxX = x;
+                    if (y > maxY)
+                        maxY = y;
+
+                    // add neighbours
+                    bool isNotTop = y > 0;
+                    bool isNotLeft = x > 0;
+                    bool isNotBottom = y < height - 1;
+                    bool isNotRight = x < width - 1;
 
                     // three above
                     if (isNotTop)
-                    {
+                    { 
                         int indexAbove = index - width;
                         // left
                         if (isNotLeft)
@@ -128,10 +154,15 @@ namespace RemoveBackground
                             stack.Enqueue(indexBelow + 1);
                     }
                 }
+
+                Debug.WriteLine($"Overscan factor {(double)pixelsVisited / pixelsSelected:F01}x (selected = {pixelsSelected:N0}, visited = {pixelsVisited:N0})");
             }
 
-            return result;
+            return new FloodFillResult()
+            {
+                Bitmap = result.Bitmap,
+                ROI = new Rectangle(minX, minY, maxX - minX, maxY - minY)
+            };
         }
-
     }
 }
