@@ -7,7 +7,7 @@ namespace RemoveBackground
             /// <summary>
             /// Relative to its size
             /// </summary>
-            public PointF PictureboxCoords { get; set; } = pictureBoxCoords;
+            public Point PictureboxCoords { get; set; } = pictureBoxCoords;
             public Point? ImageCoords { get; set; } = imageCoords;
         }
 
