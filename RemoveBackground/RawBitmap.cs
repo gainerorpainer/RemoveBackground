@@ -42,6 +42,8 @@ namespace RemoveBackground
 
         public uint GetPixel(Point point) => RawData[point.X + point.Y * Width];
 
+        public void SetPixel(Point point, uint color) => RawData[point.X + point.Y * Width] = color;
+
         void IDisposable.Dispose()
         {
             if (Disposed) return;
@@ -49,5 +51,7 @@ namespace RemoveBackground
             GC.SuppressFinalize(this);
             BitsHandle.Free();
         }
+
+
     }
 }

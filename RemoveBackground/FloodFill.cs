@@ -68,21 +68,30 @@ namespace RemoveBackground
             }
         }
 
-        private static unsafe Rectangle SideThread(RawBitmap input, float threshold, Point startPoint, uint refColor, Rectangle bounds)
+        private static unsafe Rectangle SideThread(RawBitmap input, float threshold, (Point, Point) startPoints, uint refColor, Rectangle bounds)
         {
             // calculate squared absolute threshold for later comparison
             int absThreshold = (int)(MathF.Pow(threshold, 2) * MAX_DIFFERENCE);
 
             // roi state vars
-            int minX = startPoint.X, minY = startPoint.Y, maxX = startPoint.X, maxY = startPoint.Y;
+            int minX = int.MaxValue;
+            int minY = int.MaxValue;
+            int maxX = int.MinValue;
+            int maxY = int.MinValue;
 
             // container for new flood starting points
             const int RINGBUFFER_SIZE = 256 * 1024;
             int* ringBuffer = stackalloc int[RINGBUFFER_SIZE];
             uint ringWrite = 0;
             uint ringRead = 0;
-            ringBuffer[ringWrite] = GetIndex(input.Width, in startPoint);
-            ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+
+            // account for oob points
+            Rectangle imageBounds = new(0, 0, input.Width, input.Height);
+            foreach (Point p in new Point[] { startPoints.Item1, startPoints.Item2 }.Where(imageBounds.Contains))
+            {
+                ringBuffer[ringWrite] = GetIndex(input.Width, in p);
+                ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+            }
 
             // recursion
             fixed (uint* pixels = input.RawData)
@@ -176,6 +185,10 @@ namespace RemoveBackground
                     }
                 }
 
+            // in case if oob
+            if (new int[] { minX, minY, maxX, maxY }.Any(x => x == int.MinValue || x == int.MaxValue))
+                return new Rectangle();
+
             return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
         }
 
@@ -185,35 +198,37 @@ namespace RemoveBackground
             var maskedImage = new RawBitmap(input);
             ClearAlphaChannel(maskedImage);
 
+            // set selected pixel to full alpha
+            maskedImage.SetPixel(startPoint, (maskedImage.GetPixel(startPoint) & RGB_MASK) | MAX_ALPHA);
+
             // result vars
             int minX = startPoint.X, minY = startPoint.Y, maxX = startPoint.X, maxY = startPoint.Y;
 
             // parameters
             uint refColor = maskedImage.GetPixel(startPoint);
             Rectangle[] bounds = new Rectangle[4];
-            bounds[0] = new(0, 0, startPoint.X + 1, startPoint.Y + 1);
-            bounds[1] = new(0, bounds[0].Height, bounds[0].Width, input.Height - bounds[0].Height);
-            bounds[2] = new(bounds[0].Width, 0, input.Width - bounds[0].Width, bounds[0].Height);
-            bounds[3] = new(bounds[2].X, bounds[2].Height, bounds[2].Width, input.Height - bounds[2].Height);
-            Point[] points =
+            bounds[0] = new(0, 0, startPoint.X + 1, startPoint.Y);
+            bounds[1] = new(0, bounds[0].Height, bounds[0].Width - 1, input.Height - bounds[0].Height);
+            bounds[2] = new(bounds[0].Width, 0, input.Width - bounds[0].Width, bounds[0].Height + 1);
+            bounds[3] = new(bounds[2].X - 1, bounds[2].Height, bounds[2].Width + 1, input.Height - bounds[2].Height);
+            (Point, Point)[] points =
             [
-                startPoint,
-                startPoint + new Size(0, 1),
-                startPoint + new Size(1, 0),
-                startPoint + new Size(1, 1),
+                (startPoint + new Size(-1, -1), startPoint + new Size(+0, -1)),
+                (startPoint + new Size(-1, +0), startPoint + new Size(-1, +1)),
+                (startPoint + new Size(+1, -1), startPoint + new Size(+1, +0)),
+                (startPoint + new Size(+0, +1), startPoint + new Size(+1, +1)),
             ];
 
-            // spawn up to 4 worker threads, depending on starting points lay within image ("edge" cases)
-            Task<Rectangle>[] workers = new Task<Rectangle>[4];
-            Rectangle imageBounds = new(new Point(), input.Size);
-            foreach (int i in Enumerable.Range(0, workers.Length).Where(i => imageBounds.Contains(points[i])))
-                workers[i] = Task.Run(() => delegateTask(bounds[i], points[i]));
+            // spawn 4 worker threads
+            Task<Rectangle>[] workers = Enumerable.Range(0, bounds.Length).Select(i => Task.Run(() => delegateTask(bounds[i], points[i]))).ToArray();
 
             // consume worker results
             Task.WaitAll(workers);
             for (int i = 0; i < workers.Length; i++)
             {
                 var roi = workers[i].Result;
+                if (roi == Rectangle.Empty)
+                    continue;
                 if (roi.X < minX)
                     minX = roi.X;
                 if (roi.Y < minY)
@@ -230,7 +245,7 @@ namespace RemoveBackground
                 ROI = new Rectangle(minX, minY, maxX - minX, maxY - minY)
             };
 
-            Rectangle delegateTask(Rectangle bounds, Point start) => SideThread(maskedImage, threshold, start, refColor, bounds);
+            Rectangle delegateTask(Rectangle bounds, (Point, Point) startPoints) => SideThread(maskedImage, threshold, startPoints, refColor, bounds);
         }
 
 
