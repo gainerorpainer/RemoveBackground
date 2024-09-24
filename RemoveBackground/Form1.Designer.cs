@@ -56,6 +56,7 @@
             // 
             // PictureBox_Input
             // 
+            PictureBox_Input.BackgroundImage = (Image)resources.GetObject("PictureBox_Input.BackgroundImage");
             PictureBox_Input.BorderStyle = BorderStyle.Fixed3D;
             PictureBox_Input.Cursor = Cursors.Cross;
             PictureBox_Input.Dock = DockStyle.Fill;
@@ -236,6 +237,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1106, 746);
             Controls.Add(tableLayoutPanel1);
+            KeyPreview = true;
             Name = "Form1";
             Text = "Remove Background";
             DragDrop += Form1_DragDrop;

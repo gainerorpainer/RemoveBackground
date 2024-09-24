@@ -1,5 +1,6 @@
 using RemoveBackground.FloodFill;
 using System.Diagnostics;
+using System.Drawing.Imaging;
 
 namespace RemoveBackground
 {
@@ -25,11 +26,25 @@ namespace RemoveBackground
             PictureBox_Input_MouseClick(this, new MouseEventArgs(MouseButtons.Left, 1, PictureBox_Input.Width / 2, PictureBox_Input.Height / 2, 0));
         }
 
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.V))
+            {
+                Button_FromClipboard_Click(this, new EventArgs());
+                return true;
+            }
+            if (keyData == (Keys.Control | Keys.C))
+            {
+                Button_ToClipboard_Click(this, new EventArgs());
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void Timer_CheckClipboard_Tick(object sender, EventArgs e)
         {
             Button_FromClipboard.Enabled = Clipboard.ContainsImage();
         }
-
 
         private void Button_LoadImage_Click(object sender, EventArgs e)
         {
@@ -147,10 +162,9 @@ namespace RemoveBackground
             PictureBox_Output.Image.Save(saveFileDialog1.FileName);
         }
 
-
         private void Button_ToClipboard_Click(object sender, EventArgs e)
         {
-            Clipboard.SetImage(PictureBox_Output.Image);
+            SetClipboardImage((Bitmap)PictureBox_Output.Image);
         }
 
         private void SetImage(Image image)
@@ -216,6 +230,23 @@ namespace RemoveBackground
             PictureBox_Output.Image = LastFloodFillResult.Bitmap.Clone(LastFloodFillResult.ROI, System.Drawing.Imaging.PixelFormat.Undefined);
 
             Label_ComputeTime.Text = $"Magic wand took {stopwatch.ElapsedMilliseconds} ms";
+        }
+
+        /// <summary>
+        /// Copies the given image to the clipboard as PNG, DIB and standard Bitmap format.
+        /// </summary>
+        /// <param name="image">Image to put on the clipboard.</param>
+        private static void SetClipboardImage(Bitmap image)
+        {
+            Clipboard.Clear();
+            DataObject data = new();
+            using MemoryStream pngMemStream = new();
+            using MemoryStream dibMemStream = new();
+            // As PNG. Gimp will prefer this over the other two.
+            image.Save(pngMemStream, ImageFormat.Png);
+            data.SetData("PNG", false, pngMemStream);
+            // The 'copy=true' argument means the MemoryStreams can be safely disposed after the operation.
+            Clipboard.SetDataObject(data, copy: true);
         }
     }
 }
