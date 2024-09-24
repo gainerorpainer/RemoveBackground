@@ -206,18 +206,6 @@ namespace RemoveBackground
 
             // parameters
             uint refColor = maskedImage.GetPixel(startPoint);
-            Rectangle[] bounds = new Rectangle[4];
-            bounds[0] = new(0, 0, startPoint.X + 1, startPoint.Y);
-            bounds[1] = new(0, bounds[0].Height, bounds[0].Width - 1, input.Height - bounds[0].Height);
-            bounds[2] = new(bounds[0].Width, 0, input.Width - bounds[0].Width, bounds[0].Height + 1);
-            bounds[3] = new(bounds[2].X - 1, bounds[2].Height, bounds[2].Width + 1, input.Height - bounds[2].Height);
-            (Point, Point)[] points =
-            [
-                (startPoint + new Size(-1, -1), startPoint + new Size(+0, -1)),
-                (startPoint + new Size(-1, +0), startPoint + new Size(-1, +1)),
-                (startPoint + new Size(+1, -1), startPoint + new Size(+1, +0)),
-                (startPoint + new Size(+0, +1), startPoint + new Size(+1, +1)),
-            ];
 
             // spawn 4 worker threads
             Task<Rectangle>[] workers = Enumerable.Range(0, bounds.Length).Select(i => Task.Run(() => delegateTask(bounds[i], points[i]))).ToArray();
