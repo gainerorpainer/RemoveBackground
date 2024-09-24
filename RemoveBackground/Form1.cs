@@ -1,3 +1,4 @@
+using RemoveBackground.FloodFill;
 using System.Diagnostics;
 
 namespace RemoveBackground
@@ -210,7 +211,7 @@ namespace RemoveBackground
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            LastFloodFillResult = FloodFill.MagicWand((Bitmap)PictureBox_Input.Image, (Point)LastSelectedPoint.Value.ImageCoords, TrackBar_Threshold.Value / 100.0f);
+            LastFloodFillResult = Algorithm.MagicWand((Bitmap)PictureBox_Input.Image, (Point)LastSelectedPoint.Value.ImageCoords, TrackBar_Threshold.Value / 100.0f);
             // crop image
             PictureBox_Output.Image = LastFloodFillResult.Bitmap.Clone(LastFloodFillResult.ROI, System.Drawing.Imaging.PixelFormat.Undefined);
 
