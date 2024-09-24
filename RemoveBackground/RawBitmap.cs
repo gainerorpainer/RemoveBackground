@@ -40,6 +40,7 @@ namespace RemoveBackground
             input.UnlockBits(inputData);
         }
 
+        public uint GetPixel(Point point) => RawData[point.X + point.Y * Width];
 
         void IDisposable.Dispose()
         {
@@ -48,7 +49,5 @@ namespace RemoveBackground
             GC.SuppressFinalize(this);
             BitsHandle.Free();
         }
-
-
     }
 }

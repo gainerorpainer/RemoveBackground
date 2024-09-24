@@ -11,23 +11,28 @@ using System.Threading.Tasks;
 
 namespace RemoveBackground
 {
-    record class FloodFillResult
+    internal record class FloodFillResult
     {
         public required Bitmap Bitmap { get; internal set; }
         public Rectangle ROI { get; internal set; }
     }
 
+
     internal static class FloodFill
     {
-        const uint VISITED_MASK = 0xFFu << 24;
-        const uint IS_NOT_VISITED_VALUE = 0u;
-        const uint IS_VISITED_VALUE = 0xFFu << 24;
+        private record class ThreadStartInfo
+        {
+
+        }
+
+        const uint RGB_MASK = ~(0xFFu << 24);
+        const uint MAX_ALPHA = 0xFFu << 24;
 
         const float MAX_DIFFERENCE = 585225.0f;
 
-        public static int GetIndex(int width, ref readonly Point point) => point.X + width * point.Y;
+        static int GetIndex(int width, ref readonly Point point) => point.X + width * point.Y;
 
-        public static int GetDifference(uint color1, uint color2)
+        static int GetColorDifference(uint color1, uint color2)
         {
             // decompose argb into r,g,b
             int r1 = (int)((color1 & 0x00FF0000) >> 16);
@@ -52,62 +57,51 @@ namespace RemoveBackground
             }
         }
 
-        public unsafe static FloodFillResult MagicWand(Bitmap input, Point startPoint, float threshold)
+        static unsafe void ClearAlphaChannel(RawBitmap result)
         {
-            // make a copy
-            var result = new RawBitmap(input);
-
-            int width = input.Width;
-            int height = input.Height;
-
-            int minX = startPoint.X, minY = startPoint.Y, maxX = startPoint.X, maxY = startPoint.Y;
-
-            // pin memory location
+            // fast way to set each alpha channel to invisible initially
             fixed (uint* pixels = result.RawData)
             {
-                // source: https://stackoverflow.com/a/367253/18181748
+                // set alpha to invisible for each pixel
+                for (int i = 0; i < result.Width * result.Height; i++)
+                    pixels[i] = pixels[i] & RGB_MASK;
+            }
+        }
 
-                // mark each pixel as not visited within alpha channel
-                for (int i = 0; i < width * height; i++)
-                    pixels[i] = (pixels[i] & ~VISITED_MASK) | IS_NOT_VISITED_VALUE;
+        private static unsafe Rectangle SideThread(RawBitmap input, float threshold, Point startPoint, uint refColor, Rectangle bounds)
+        {
+            // calculate squared absolute threshold for later comparison
+            int absThreshold = (int)(MathF.Pow(threshold, 2) * MAX_DIFFERENCE);
 
-                // first pixel
-                int startIndex = GetIndex(width, in startPoint);
-                uint refColor = pixels[startIndex];
-                // stack for recursion
-                const int RINGBUFFER_SIZE = 256 * 1024;
-                int* ringBuffer = stackalloc int[RINGBUFFER_SIZE];
-                uint ringWrite = 0;
-                uint ringRead = 0;
-                ringBuffer[ringWrite] = GetIndex(width, in startPoint);
-                ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
+            // roi state vars
+            int minX = startPoint.X, minY = startPoint.Y, maxX = startPoint.X, maxY = startPoint.Y;
 
-                uint pixelsVisited = 0;
-                uint pixelsSelected = 0;
-                uint maxBufferSize = 0;
+            // container for new flood starting points
+            const int RINGBUFFER_SIZE = 256 * 1024;
+            int* ringBuffer = stackalloc int[RINGBUFFER_SIZE];
+            uint ringWrite = 0;
+            uint ringRead = 0;
+            ringBuffer[ringWrite] = GetIndex(input.Width, in startPoint);
+            ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
 
-                // recursion
+            // recursion
+            fixed (uint* pixels = input.RawData)
                 while (ringRead != ringWrite)
                 {
-                    pixelsVisited++;
-
                     int index = ringBuffer[ringRead];
                     ringRead = (ringRead + 1) % RINGBUFFER_SIZE;
                     uint color = pixels[index];
 
                     // break out if already visited
-                    if ((color & VISITED_MASK) == IS_VISITED_VALUE)
+                    if (color > 0x00FFFFFFu)
                         continue;
 
                     // mark as visited
-                    pixels[index] = (color & ~VISITED_MASK) | IS_VISITED_VALUE;
+                    pixels[index] = (color & RGB_MASK) | MAX_ALPHA;
 
                     // break out if difference is too high
-                    float colorDiff = MathF.Sqrt(GetDifference(color, refColor) / MAX_DIFFERENCE);
-                    if (colorDiff > threshold)
+                    if (GetColorDifference(color, refColor) > absThreshold)
                         continue;
-
-                    pixelsSelected++;
 
                     // update roi
                     int x = index % input.Width;
@@ -122,15 +116,15 @@ namespace RemoveBackground
                         maxY = y;
 
                     // add neighbours
-                    bool isNotTop = y > 0;
-                    bool isNotLeft = x > 0;
-                    bool isNotBottom = y < height - 1;
-                    bool isNotRight = x < width - 1;
+                    bool isNotTop = y > bounds.Top;
+                    bool isNotLeft = x > bounds.Left;
+                    bool isNotBottom = y < bounds.Bottom - 1;
+                    bool isNotRight = x < bounds.Right - 1;
 
                     // three above
                     if (isNotTop)
                     {
-                        int indexAbove = index - width;
+                        int indexAbove = index - input.Width;
                         // left
                         if (isNotLeft)
                         {
@@ -163,7 +157,7 @@ namespace RemoveBackground
                     // three bewlo
                     if (isNotBottom)
                     {
-                        int indexBelow = index + width;
+                        int indexBelow = index + input.Width;
                         // left
                         if (isNotLeft)
                         {
@@ -180,20 +174,65 @@ namespace RemoveBackground
                             ringWrite = (ringWrite + 1) % RINGBUFFER_SIZE;
                         }
                     }
-
-                    uint bufferSize = unchecked((ringWrite - ringRead) % RINGBUFFER_SIZE);
-                    maxBufferSize = bufferSize > maxBufferSize ? bufferSize : maxBufferSize;
                 }
 
-                Debug.WriteLine($"Overscan factor {(double)pixelsVisited / pixelsSelected:F01}x (selected = {pixelsSelected:N0}, visited = {pixelsVisited:N0})");
-                Debug.WriteLine($"Max buffer size = {maxBufferSize}");
+            return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        }
+
+        public static FloodFillResult MagicWand(Bitmap input, Point startPoint, float threshold)
+        {
+            // make a clone and then preset alpha channel
+            var maskedImage = new RawBitmap(input);
+            ClearAlphaChannel(maskedImage);
+
+            // result vars
+            int minX = startPoint.X, minY = startPoint.Y, maxX = startPoint.X, maxY = startPoint.Y;
+
+            // parameters
+            uint refColor = maskedImage.GetPixel(startPoint);
+            Rectangle[] bounds = new Rectangle[4];
+            bounds[0] = new(0, 0, startPoint.X + 1, startPoint.Y + 1);
+            bounds[1] = new(0, bounds[0].Height, bounds[0].Width, input.Height - bounds[0].Height);
+            bounds[2] = new(bounds[0].Width, 0, input.Width - bounds[0].Width, bounds[0].Height);
+            bounds[3] = new(bounds[2].X, bounds[2].Height, bounds[2].Width, input.Height - bounds[2].Height);
+            Point[] points =
+            [
+                startPoint,
+                startPoint + new Size(0, 1),
+                startPoint + new Size(1, 0),
+                startPoint + new Size(1, 1),
+            ];
+
+            // spawn up to 4 worker threads, depending on starting points lay within image ("edge" cases)
+            Task<Rectangle>[] workers = new Task<Rectangle>[4];
+            Rectangle imageBounds = new(new Point(), input.Size);
+            foreach (int i in Enumerable.Range(0, workers.Length).Where(i => imageBounds.Contains(points[i])))
+                workers[i] = Task.Run(() => delegateTask(bounds[i], points[i]));
+
+            // consume worker results
+            Task.WaitAll(workers);
+            for (int i = 0; i < workers.Length; i++)
+            {
+                var roi = workers[i].Result;
+                if (roi.X < minX)
+                    minX = roi.X;
+                if (roi.Y < minY)
+                    minY = roi.Y;
+                if (roi.Right > maxX)
+                    maxX = roi.Right;
+                if (roi.Bottom > maxY)
+                    maxY = roi.Bottom;
             }
 
             return new FloodFillResult()
             {
-                Bitmap = result.Bitmap,
+                Bitmap = maskedImage.Bitmap,
                 ROI = new Rectangle(minX, minY, maxX - minX, maxY - minY)
             };
+
+            Rectangle delegateTask(Rectangle bounds, Point start) => SideThread(maskedImage, threshold, start, refColor, bounds);
         }
+
+
     }
 }

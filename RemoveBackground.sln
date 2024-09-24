@@ -5,6 +5,11 @@ VisualStudioVersion = 17.11.35219.272
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RemoveBackground", "RemoveBackground\RemoveBackground.csproj", "{9D99AE68-4D49-4059-A730-2DA72250C340}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Projektmappenelemente", "{2B2300B1-E129-42FA-A43A-D9EBE1A0EC60}"
+	ProjectSection(SolutionItems) = preProject
+		ThreadsGrid.xlsx = ThreadsGrid.xlsx
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
