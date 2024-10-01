@@ -13,7 +13,7 @@ namespace RemoveBackground.FloodFill
 {
     internal record class FloodFillResult
     {
-        public required Bitmap Bitmap { get; internal set; }
+        public required RawBitmap RawBitmap { get; internal set; }
         public Rectangle ROI { get; internal set; }
     }
 
@@ -80,7 +80,7 @@ namespace RemoveBackground.FloodFill
 
             return new FloodFillResult()
             {
-                Bitmap = maskedImage.Bitmap,
+                RawBitmap = maskedImage,
                 ROI = new Rectangle(minX, minY, maxX - minX, maxY - minY)
             };
 

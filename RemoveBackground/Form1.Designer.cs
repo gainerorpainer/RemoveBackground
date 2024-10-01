@@ -250,7 +250,8 @@
             // 
             Button_Invert.BackgroundImage = (Image)resources.GetObject("Button_Invert.BackgroundImage");
             Button_Invert.BackgroundImageLayout = ImageLayout.Stretch;
-            Button_Invert.FlatAppearance.BorderColor = Color.Black;
+            Button_Invert.FlatAppearance.BorderColor = Color.Red;
+            Button_Invert.FlatAppearance.BorderSize = 4;
             Button_Invert.Location = new Point(428, 3);
             Button_Invert.Name = "Button_Invert";
             Button_Invert.Size = new Size(64, 64);

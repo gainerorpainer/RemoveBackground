@@ -19,6 +19,7 @@ namespace RemoveBackground
 
         private SelectedPoint? LastSelectedPoint { get; set; } = null;
         private FloodFillResult? LastFloodFillResult { get; set; } = null;
+        private bool IsInverted { get; set; } = false;
 
         public Form1()
         {
@@ -178,10 +179,10 @@ namespace RemoveBackground
 
         private void Button_Invert_Click(object sender, EventArgs e)
         {
-            if (LastFloodFillResult is null)
-                return;
+            IsInverted = !IsInverted;
+            Button_Invert.FlatStyle = IsInverted ? FlatStyle.Flat : FlatStyle.Standard;
 
-            PictureBox_Output.Image = InvertAndCrop(LastFloodFillResult.Bitmap);
+            MagicWand();
         }
 
 
@@ -246,8 +247,9 @@ namespace RemoveBackground
             Stopwatch stopwatch = Stopwatch.StartNew();
 
             LastFloodFillResult = Algorithm.MagicWand((Bitmap)PictureBox_Input.Image, (Point)LastSelectedPoint.Value.ImageCoords, TrackBar_Threshold.Value / 100.0f);
+            Bitmap resultImg = IsInverted ? LastFloodFillResult.RawBitmap.GetInvertedAndCropped() : LastFloodFillResult.RawBitmap.GetCropped(LastFloodFillResult.ROI);
             // crop image
-            PictureBox_Output.Image = LastFloodFillResult.Bitmap.Clone(LastFloodFillResult.ROI, format: PixelFormat.Undefined);
+            PictureBox_Output.Image = resultImg;
 
             Label_ComputeTime.Text = $"Magic wand took {stopwatch.ElapsedMilliseconds} ms";
         }
@@ -263,45 +265,6 @@ namespace RemoveBackground
             data.SetData("PNG", false, pngMemStream);
             // The 'copy=true' argument means the MemoryStreams can be safely disposed after the operation.
             Clipboard.SetDataObject(data, copy: true);
-        }
-
-        private Bitmap InvertAndCrop(Bitmap bitmap)
-        {
-            var copy = new RawBitmap(bitmap);
-            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
-            unsafe
-            {
-                fixed (uint* pixels = copy.RawData)
-                {
-                    for (int y = 0; y < copy.Height; y++)
-                    {
-                        for (int x = 0; x < copy.Width; x++)
-                        {
-                            int i = x + y * copy.Width;
-                            uint alphaInverted = Constants.MAX_ALPHA ^ (pixels[i] & ~Constants.RGB_MASK);
-                            pixels[i] = (pixels[i] & Constants.RGB_MASK) | alphaInverted;
-
-                            if (alphaInverted == 0)
-                                continue;
-
-                            if (x < minX)
-                                minX = x;
-                            if (y < minY)
-                                minY = y;
-                            if (x > maxX)
-                                maxX = x;
-                            if (y > maxY)
-                                maxY = y;
-                        }
-                    }
-                }
-            }
-            // crop fails if no pixels selected
-            if (minX == int.MaxValue)
-                return bitmap;
-            // crop
-            Rectangle roi = new(minX, minY, maxX - minX, maxY - minY);
-            return copy.Bitmap.Clone(roi, bitmap.PixelFormat);
         }
 
         #endregion
