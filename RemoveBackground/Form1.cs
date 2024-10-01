@@ -7,19 +7,12 @@ namespace RemoveBackground
 {
     public partial class Form1 : Form
     {
-        private struct SelectedPoint(PointF relpictureBoxCoords, Point? imageCoords)
-        {
-            /// <summary>
-            /// Relative to its size
-            /// </summary>
-            public PointF RelPictureboxCoords { get; set; } = relpictureBoxCoords;
+        private record class SelectedPoint(PointF RelPictureBoxCoords, Point ImageCoords)
+        { }
 
-            public Point? ImageCoords { get; set; } = imageCoords;
-        }
-
-        private SelectedPoint? LastSelectedPoint { get; set; } = null;
-        private FloodFillResult? LastFloodFillResult { get; set; } = null;
+        private List<SelectedPoint> SelectedPoints { get; set; } = [];
         private bool IsInverted { get; set; } = false;
+        private bool IsAddingPoints { get; set; } = false;
 
         public Form1()
         {
@@ -27,6 +20,9 @@ namespace RemoveBackground
 
             PictureBox_Input_MouseClick(this, new MouseEventArgs(MouseButtons.Left, 1, PictureBox_Input.Width / 2, PictureBox_Input.Height / 2, 0));
         }
+
+
+        #region Input Image
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
@@ -112,14 +108,25 @@ namespace RemoveBackground
             }
         }
 
+        #endregion
+
+
+        #region Interaction / Tools
+
         private void PictureBox_Input_MouseClick(object sender, MouseEventArgs e)
         {
-            // convert mouse to picture coords
-            PointF relpictureBoxCoords = new((float)e.Location.X / PictureBox_Input.Width, (float)e.Location.Y / PictureBox_Input.Height);
-            Point? imageCoords = ToImageCoords(e.Location);
-            LastSelectedPoint = new SelectedPoint(relpictureBoxCoords, imageCoords);
-            if (LastSelectedPoint.Value.ImageCoords is null)
+            Point? pointInImage = ToImageCoords(e.Location);
+            if (pointInImage is null)
                 return;
+
+            var selectedPoint = new SelectedPoint(new PointF((float)e.Location.X / PictureBox_Input.Width, (float)e.Location.Y / PictureBox_Input.Height),
+                // convert mouse to picture coords
+                (Point)pointInImage);
+
+            if (IsAddingPoints)
+                SelectedPoints.Add(selectedPoint);
+            else
+                SelectedPoints = [selectedPoint];
 
             PictureBox_Input.Refresh();
 
@@ -128,41 +135,54 @@ namespace RemoveBackground
 
         private void PictureBox_Input_Paint(object sender, PaintEventArgs e)
         {
-            if (LastSelectedPoint is null)
-                return;
-
-            int x = (int)(LastSelectedPoint.Value.RelPictureboxCoords.X * PictureBox_Input.Width);
-            int y = (int)(LastSelectedPoint.Value.RelPictureboxCoords.Y * PictureBox_Input.Height);
-
             const int LINE_LENGTH = 20; // Length of crosshair lines
             const int LINE_THICKNESS = 2; // Thickness of crosshair lines
 
             // Create a pen to draw the crosshair
             Pen pen = new(Color.Red, LINE_THICKNESS);
-            // Draw the horizontal line
-            e.Graphics.DrawLine(pen, x - LINE_LENGTH, y, x + LINE_LENGTH, y);
-            // Draw the vertical line 
-            e.Graphics.DrawLine(pen, x, y - LINE_LENGTH, x, y + LINE_LENGTH);
+
+            foreach (SelectedPoint point in SelectedPoints)
+            {
+                int x = (int)(point.RelPictureBoxCoords.X * PictureBox_Input.Width);
+                int y = (int)(point.RelPictureBoxCoords.Y * PictureBox_Input.Height);
+
+                // Draw the horizontal line
+                e.Graphics.DrawLine(pen, x - LINE_LENGTH, y, x + LINE_LENGTH, y);
+                // Draw the vertical line 
+                e.Graphics.DrawLine(pen, x, y - LINE_LENGTH, x, y + LINE_LENGTH);
+            }
         }
 
         private void TrackBar_Threshold_ValueChanged(object sender, EventArgs e)
         {
             Label_Threshold.Text = $"Threshold = {TrackBar_Threshold.Value}%";
 
-            if (LastSelectedPoint is null)
-                return;
+            MagicWand();
+        }
+
+        private void Button_Invert_Click(object sender, EventArgs e)
+        {
+            IsInverted = !IsInverted;
+            Button_Invert.FlatStyle = IsInverted ? FlatStyle.Flat : FlatStyle.Standard;
 
             MagicWand();
         }
 
+        private void Button_AddPoints_Click(object sender, EventArgs e)
+        {
+            IsAddingPoints = !IsAddingPoints;
+            Button_AddPoints.FlatStyle = IsAddingPoints ? FlatStyle.Flat : FlatStyle.Standard;
+        }
+
         private void PictureBox_Input_Resize(object sender, EventArgs e)
         {
-            // transform picturebox point after resize
-            if (LastSelectedPoint is null)
-                return;
-
             PictureBox_Input.Refresh();
         }
+
+        #endregion
+
+
+        #region Output Image
 
         private void Button_SaveFile_Click(object sender, EventArgs e)
         {
@@ -177,13 +197,7 @@ namespace RemoveBackground
             SetClipboardImage((Bitmap)PictureBox_Output.Image);
         }
 
-        private void Button_Invert_Click(object sender, EventArgs e)
-        {
-            IsInverted = !IsInverted;
-            Button_Invert.FlatStyle = IsInverted ? FlatStyle.Flat : FlatStyle.Standard;
-
-            MagicWand();
-        }
+        #endregion
 
 
         #region Function
@@ -192,7 +206,7 @@ namespace RemoveBackground
         {
             PictureBox_Input.Image = image;
             PictureBox_Output.Image = null;
-            LastSelectedPoint = null;
+            SelectedPoints = [];
 
             PictureBox_Input.Refresh();
         }
@@ -241,14 +255,24 @@ namespace RemoveBackground
 
         private void MagicWand()
         {
-            if (LastSelectedPoint is null || LastSelectedPoint.Value.ImageCoords is null)
-                throw new InvalidOperationException($"Must first set {nameof(LastSelectedPoint)} property");
+            if (SelectedPoints.Count == 0) 
+                return;
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            LastFloodFillResult = Algorithm.MagicWand((Bitmap)PictureBox_Input.Image, (Point)LastSelectedPoint.Value.ImageCoords, TrackBar_Threshold.Value / 100.0f);
-            Bitmap resultImg = IsInverted ? LastFloodFillResult.RawBitmap.GetInvertedAndCropped() : LastFloodFillResult.RawBitmap.GetCropped(LastFloodFillResult.ROI);
-            // crop image
+            // setup vars
+            RawBitmap raw = new((Bitmap)PictureBox_Input.Image);
+            Algorithm.ClearAlphaChannel(raw);
+            Rectangle roi = new(SelectedPoints.First().ImageCoords, new Size(1,1));
+            // run for each
+            foreach (SelectedPoint point in SelectedPoints)
+            {
+                Rectangle currentRoi = Algorithm.MagicWand(raw, point.ImageCoords, TrackBar_Threshold.Value / 100.0f);
+                roi = Algorithm.CombineRois(roi, currentRoi);
+            }
+
+            // crop/invert image
+            Bitmap resultImg = IsInverted ? raw.GetInvertedAndCropped() : raw.GetCropped(roi);
             PictureBox_Output.Image = resultImg;
 
             Label_ComputeTime.Text = $"Magic wand took {stopwatch.ElapsedMilliseconds} ms";

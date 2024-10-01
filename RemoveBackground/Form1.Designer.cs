@@ -49,6 +49,7 @@
             openFileDialog1 = new OpenFileDialog();
             saveFileDialog1 = new SaveFileDialog();
             Timer_CheckClipboard = new System.Windows.Forms.Timer(components);
+            Button_AddPoints = new Button();
             ((System.ComponentModel.ISupportInitialize)PictureBox_Input).BeginInit();
             tableLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)PictureBox_Output).BeginInit();
@@ -202,6 +203,7 @@
             flowLayoutPanel3.Controls.Add(Label_Threshold);
             flowLayoutPanel3.Controls.Add(splitter1);
             flowLayoutPanel3.Controls.Add(Button_Invert);
+            flowLayoutPanel3.Controls.Add(Button_AddPoints);
             flowLayoutPanel3.Dock = DockStyle.Fill;
             flowLayoutPanel3.Location = new Point(3, 619);
             flowLayoutPanel3.Name = "flowLayoutPanel3";
@@ -274,6 +276,19 @@
             Timer_CheckClipboard.Enabled = true;
             Timer_CheckClipboard.Tick += Timer_CheckClipboard_Tick;
             // 
+            // Button_AddPoints
+            // 
+            Button_AddPoints.BackgroundImage = (Image)resources.GetObject("Button_AddPoints.BackgroundImage");
+            Button_AddPoints.BackgroundImageLayout = ImageLayout.Stretch;
+            Button_AddPoints.FlatAppearance.BorderColor = Color.Red;
+            Button_AddPoints.FlatAppearance.BorderSize = 4;
+            Button_AddPoints.Location = new Point(498, 3);
+            Button_AddPoints.Name = "Button_AddPoints";
+            Button_AddPoints.Size = new Size(64, 64);
+            Button_AddPoints.TabIndex = 5;
+            Button_AddPoints.UseVisualStyleBackColor = true;
+            Button_AddPoints.Click += Button_AddPoints_Click;
+            // 
             // Form1
             // 
             AllowDrop = true;
@@ -321,5 +336,6 @@
         private FlowLayoutPanel flowLayoutPanel3;
         private Button Button_Invert;
         private Splitter splitter1;
+        private Button Button_AddPoints;
     }
 }
