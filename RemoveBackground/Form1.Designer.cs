@@ -36,13 +36,16 @@
             flowLayoutPanel1 = new FlowLayoutPanel();
             Button_LoadImage = new Button();
             Button_FromClipboard = new Button();
-            label1 = new Label();
-            TrackBar_Threshold = new TrackBar();
-            Label_Threshold = new Label();
             flowLayoutPanel2 = new FlowLayoutPanel();
             Label_ComputeTime = new Label();
             Button_SaveFile = new Button();
             Button_ToClipboard = new Button();
+            flowLayoutPanel3 = new FlowLayoutPanel();
+            label1 = new Label();
+            TrackBar_Threshold = new TrackBar();
+            Label_Threshold = new Label();
+            splitter1 = new Splitter();
+            Button_Invert = new Button();
             openFileDialog1 = new OpenFileDialog();
             saveFileDialog1 = new SaveFileDialog();
             Timer_CheckClipboard = new System.Windows.Forms.Timer(components);
@@ -50,8 +53,9 @@
             tableLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)PictureBox_Output).BeginInit();
             flowLayoutPanel1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)TrackBar_Threshold).BeginInit();
             flowLayoutPanel2.SuspendLayout();
+            flowLayoutPanel3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)TrackBar_Threshold).BeginInit();
             SuspendLayout();
             // 
             // PictureBox_Input
@@ -61,9 +65,9 @@
             PictureBox_Input.Cursor = Cursors.Cross;
             PictureBox_Input.Dock = DockStyle.Fill;
             PictureBox_Input.Image = (Image)resources.GetObject("PictureBox_Input.Image");
-            PictureBox_Input.Location = new Point(3, 103);
+            PictureBox_Input.Location = new Point(3, 50);
             PictureBox_Input.Name = "PictureBox_Input";
-            PictureBox_Input.Size = new Size(547, 540);
+            PictureBox_Input.Size = new Size(547, 563);
             PictureBox_Input.SizeMode = PictureBoxSizeMode.Zoom;
             PictureBox_Input.TabIndex = 0;
             PictureBox_Input.TabStop = false;
@@ -79,14 +83,16 @@
             tableLayoutPanel1.Controls.Add(PictureBox_Input, 0, 1);
             tableLayoutPanel1.Controls.Add(PictureBox_Output, 1, 1);
             tableLayoutPanel1.Controls.Add(flowLayoutPanel1, 0, 0);
-            tableLayoutPanel1.Controls.Add(flowLayoutPanel2, 0, 2);
+            tableLayoutPanel1.Controls.Add(flowLayoutPanel2, 0, 3);
+            tableLayoutPanel1.Controls.Add(flowLayoutPanel3, 0, 2);
             tableLayoutPanel1.Dock = DockStyle.Fill;
             tableLayoutPanel1.Location = new Point(0, 0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
-            tableLayoutPanel1.RowCount = 3;
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
+            tableLayoutPanel1.RowCount = 4;
+            tableLayoutPanel1.RowStyles.Add(new RowStyle());
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 100F));
+            tableLayoutPanel1.RowStyles.Add(new RowStyle());
+            tableLayoutPanel1.RowStyles.Add(new RowStyle());
             tableLayoutPanel1.Size = new Size(1106, 746);
             tableLayoutPanel1.TabIndex = 1;
             // 
@@ -96,25 +102,23 @@
             PictureBox_Output.BorderStyle = BorderStyle.Fixed3D;
             PictureBox_Output.Dock = DockStyle.Fill;
             PictureBox_Output.Image = (Image)resources.GetObject("PictureBox_Output.Image");
-            PictureBox_Output.Location = new Point(556, 103);
+            PictureBox_Output.Location = new Point(556, 50);
             PictureBox_Output.Name = "PictureBox_Output";
-            PictureBox_Output.Size = new Size(547, 540);
+            PictureBox_Output.Size = new Size(547, 563);
             PictureBox_Output.SizeMode = PictureBoxSizeMode.Zoom;
             PictureBox_Output.TabIndex = 2;
             PictureBox_Output.TabStop = false;
             // 
             // flowLayoutPanel1
             // 
+            flowLayoutPanel1.AutoSize = true;
             tableLayoutPanel1.SetColumnSpan(flowLayoutPanel1, 2);
             flowLayoutPanel1.Controls.Add(Button_LoadImage);
             flowLayoutPanel1.Controls.Add(Button_FromClipboard);
-            flowLayoutPanel1.Controls.Add(label1);
-            flowLayoutPanel1.Controls.Add(TrackBar_Threshold);
-            flowLayoutPanel1.Controls.Add(Label_Threshold);
             flowLayoutPanel1.Dock = DockStyle.Fill;
             flowLayoutPanel1.Location = new Point(3, 3);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
-            flowLayoutPanel1.Size = new Size(1100, 94);
+            flowLayoutPanel1.Size = new Size(1100, 41);
             flowLayoutPanel1.TabIndex = 3;
             // 
             // Button_LoadImage
@@ -142,44 +146,17 @@
             Button_FromClipboard.UseVisualStyleBackColor = true;
             Button_FromClipboard.Click += Button_FromClipboard_Click;
             // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new Point(315, 0);
-            label1.Name = "label1";
-            label1.Size = new Size(94, 25);
-            label1.TabIndex = 2;
-            label1.Text = "Threshold:";
-            // 
-            // TrackBar_Threshold
-            // 
-            TrackBar_Threshold.Location = new Point(415, 3);
-            TrackBar_Threshold.Maximum = 100;
-            TrackBar_Threshold.Name = "TrackBar_Threshold";
-            TrackBar_Threshold.Size = new Size(156, 69);
-            TrackBar_Threshold.TabIndex = 1;
-            TrackBar_Threshold.Value = 20;
-            TrackBar_Threshold.ValueChanged += TrackBar_Threshold_ValueChanged;
-            // 
-            // Label_Threshold
-            // 
-            Label_Threshold.AutoSize = true;
-            Label_Threshold.Location = new Point(577, 0);
-            Label_Threshold.Name = "Label_Threshold";
-            Label_Threshold.Size = new Size(147, 25);
-            Label_Threshold.TabIndex = 3;
-            Label_Threshold.Text = "Threshold = 20%";
-            // 
             // flowLayoutPanel2
             // 
+            flowLayoutPanel2.AutoSize = true;
             tableLayoutPanel1.SetColumnSpan(flowLayoutPanel2, 2);
             flowLayoutPanel2.Controls.Add(Label_ComputeTime);
             flowLayoutPanel2.Controls.Add(Button_SaveFile);
             flowLayoutPanel2.Controls.Add(Button_ToClipboard);
             flowLayoutPanel2.Dock = DockStyle.Fill;
-            flowLayoutPanel2.Location = new Point(3, 649);
+            flowLayoutPanel2.Location = new Point(3, 702);
             flowLayoutPanel2.Name = "flowLayoutPanel2";
-            flowLayoutPanel2.Size = new Size(1100, 94);
+            flowLayoutPanel2.Size = new Size(1100, 41);
             flowLayoutPanel2.TabIndex = 4;
             // 
             // Label_ComputeTime
@@ -215,6 +192,72 @@
             Button_ToClipboard.UseVisualStyleBackColor = true;
             Button_ToClipboard.Click += Button_ToClipboard_Click;
             // 
+            // flowLayoutPanel3
+            // 
+            flowLayoutPanel3.AutoSize = true;
+            flowLayoutPanel3.BorderStyle = BorderStyle.FixedSingle;
+            tableLayoutPanel1.SetColumnSpan(flowLayoutPanel3, 2);
+            flowLayoutPanel3.Controls.Add(label1);
+            flowLayoutPanel3.Controls.Add(TrackBar_Threshold);
+            flowLayoutPanel3.Controls.Add(Label_Threshold);
+            flowLayoutPanel3.Controls.Add(splitter1);
+            flowLayoutPanel3.Controls.Add(Button_Invert);
+            flowLayoutPanel3.Dock = DockStyle.Fill;
+            flowLayoutPanel3.Location = new Point(3, 619);
+            flowLayoutPanel3.Name = "flowLayoutPanel3";
+            flowLayoutPanel3.Size = new Size(1100, 77);
+            flowLayoutPanel3.TabIndex = 5;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(3, 0);
+            label1.Name = "label1";
+            label1.Size = new Size(94, 25);
+            label1.TabIndex = 2;
+            label1.Text = "Threshold:";
+            // 
+            // TrackBar_Threshold
+            // 
+            TrackBar_Threshold.Location = new Point(103, 3);
+            TrackBar_Threshold.Maximum = 100;
+            TrackBar_Threshold.Name = "TrackBar_Threshold";
+            TrackBar_Threshold.Size = new Size(156, 69);
+            TrackBar_Threshold.TabIndex = 1;
+            TrackBar_Threshold.Value = 20;
+            TrackBar_Threshold.ValueChanged += TrackBar_Threshold_ValueChanged;
+            // 
+            // Label_Threshold
+            // 
+            Label_Threshold.AutoSize = true;
+            Label_Threshold.Location = new Point(265, 0);
+            Label_Threshold.Name = "Label_Threshold";
+            Label_Threshold.Size = new Size(147, 25);
+            Label_Threshold.TabIndex = 3;
+            Label_Threshold.Text = "Threshold = 20%";
+            // 
+            // splitter1
+            // 
+            splitter1.BorderStyle = BorderStyle.FixedSingle;
+            splitter1.Enabled = false;
+            splitter1.Location = new Point(418, 3);
+            splitter1.Name = "splitter1";
+            splitter1.Size = new Size(4, 69);
+            splitter1.TabIndex = 4;
+            splitter1.TabStop = false;
+            // 
+            // Button_Invert
+            // 
+            Button_Invert.BackgroundImage = (Image)resources.GetObject("Button_Invert.BackgroundImage");
+            Button_Invert.BackgroundImageLayout = ImageLayout.Stretch;
+            Button_Invert.FlatAppearance.BorderColor = Color.Black;
+            Button_Invert.Location = new Point(428, 3);
+            Button_Invert.Name = "Button_Invert";
+            Button_Invert.Size = new Size(64, 64);
+            Button_Invert.TabIndex = 0;
+            Button_Invert.UseVisualStyleBackColor = true;
+            Button_Invert.Click += Button_Invert_Click;
+            // 
             // openFileDialog1
             // 
             openFileDialog1.FileName = "openFileDialog1";
@@ -244,12 +287,15 @@
             DragEnter += Form1_DragEnter;
             ((System.ComponentModel.ISupportInitialize)PictureBox_Input).EndInit();
             tableLayoutPanel1.ResumeLayout(false);
+            tableLayoutPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)PictureBox_Output).EndInit();
             flowLayoutPanel1.ResumeLayout(false);
             flowLayoutPanel1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)TrackBar_Threshold).EndInit();
             flowLayoutPanel2.ResumeLayout(false);
             flowLayoutPanel2.PerformLayout();
+            flowLayoutPanel3.ResumeLayout(false);
+            flowLayoutPanel3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)TrackBar_Threshold).EndInit();
             ResumeLayout(false);
         }
 
@@ -271,5 +317,8 @@
         private Button Button_FromClipboard;
         private System.Windows.Forms.Timer Timer_CheckClipboard;
         private Button Button_ToClipboard;
+        private FlowLayoutPanel flowLayoutPanel3;
+        private Button Button_Invert;
+        private Splitter splitter1;
     }
 }
