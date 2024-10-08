@@ -7,6 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RemoveBackground", "RemoveB
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Projektmappenelemente", "{2B2300B1-E129-42FA-A43A-D9EBE1A0EC60}"
 	ProjectSection(SolutionItems) = preProject
+		RemoveBackground\RemoveBackground.exe = RemoveBackground\RemoveBackground.exe
 		ThreadsGrid.xlsx = ThreadsGrid.xlsx
 	EndProjectSection
 EndProject

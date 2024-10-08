@@ -52,4 +52,8 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <Target Name="CopyToRootDir" AfterTargets="Publish">
+    <Exec Command="xcopy /y bin\Release\net8.0-windows\publish\win-x64\RemoveBackground.exe ." />
+  </Target>
+
 </Project>
