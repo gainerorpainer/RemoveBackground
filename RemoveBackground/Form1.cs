@@ -24,20 +24,6 @@ namespace RemoveBackground
 
         #region Input Image
 
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        {
-            if (keyData == (Keys.Control | Keys.V))
-            {
-                Button_FromClipboard_Click(this, new EventArgs());
-                return true;
-            }
-            if (keyData == (Keys.Control | Keys.C))
-            {
-                Button_ToClipboard_Click(this, new EventArgs());
-                return true;
-            }
-            return base.ProcessCmdKey(ref msg, keyData);
-        }
 
         private void Timer_CheckClipboard_Tick(object sender, EventArgs e)
         {
@@ -113,6 +99,27 @@ namespace RemoveBackground
 
         #region Interaction / Tools
 
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.V))
+            {
+                Button_FromClipboard_Click(this, new EventArgs());
+                return true;
+            }
+            if (keyData == (Keys.Control | Keys.C))
+            {
+                Button_ToClipboard_Click(this, new EventArgs());
+                return true;
+            }
+            if (keyData == Keys.Escape)
+            {
+                SelectedPoints = [];
+                PictureBox_Input.Refresh();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void PictureBox_Input_MouseClick(object sender, MouseEventArgs e)
         {
             Point? pointInImage = ToImageCoords(e.Location);
@@ -123,7 +130,7 @@ namespace RemoveBackground
                 // convert mouse to picture coords
                 (Point)pointInImage);
 
-            if (IsAddingPoints)
+            if (IsAddingPoints || ModifierKeys.HasFlag(Keys.Control))
                 SelectedPoints.Add(selectedPoint);
             else
                 SelectedPoints = [selectedPoint];
@@ -255,7 +262,7 @@ namespace RemoveBackground
 
         private void MagicWand()
         {
-            if (SelectedPoints.Count == 0) 
+            if (SelectedPoints.Count == 0)
                 return;
 
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -263,7 +270,7 @@ namespace RemoveBackground
             // setup vars
             RawBitmap raw = new((Bitmap)PictureBox_Input.Image);
             Algorithm.ClearAlphaChannel(raw);
-            Rectangle roi = new(SelectedPoints.First().ImageCoords, new Size(1,1));
+            Rectangle roi = new(SelectedPoints.First().ImageCoords, new Size(1, 1));
             // run for each
             foreach (SelectedPoint point in SelectedPoints)
             {

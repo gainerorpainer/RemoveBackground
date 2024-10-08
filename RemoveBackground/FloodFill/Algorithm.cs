@@ -11,12 +11,6 @@ using System.Threading.Tasks;
 
 namespace RemoveBackground.FloodFill
 {
-    internal record class FloodFillResult
-    {
-        public required RawBitmap RawBitmap { get; internal set; }
-        public Rectangle ROI { get; internal set; }
-    }
-
     internal static class Algorithm
     {
         public static unsafe void ClearAlphaChannel(RawBitmap result)
@@ -91,5 +85,11 @@ namespace RemoveBackground.FloodFill
             int bottom = Math.Max(a.Bottom, b.Bottom);
             return new(left, top, right - left, bottom - top);
         }
+    }
+
+    internal record class FloodFillResult
+    {
+        public required RawBitmap RawBitmap { get; internal set; }
+        public Rectangle ROI { get; internal set; }
     }
 }
