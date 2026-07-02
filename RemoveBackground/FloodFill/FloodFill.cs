@@ -91,9 +91,9 @@ namespace RemoveBackground.FloodFill
                             read = (read + 1) % floodingPixels.Length;
                         }
                         int numDuplicates = indexCopy.Count - indexCopy.Distinct().Count();
-                        Debug.WriteLine($"Duplicates = {(double)numDuplicates/indexCopy.Count:P1}");
+                        //Debug.WriteLine($"Duplicates = {(double)numDuplicates/indexCopy.Count:P1}");
 
-                        Debug.WriteLine($"{iterations}:\tSize={floodingPixelsBuffer.GetSize()} ({floodingPixelsBuffer.GetSize() / (double)floodingPixels.Length:P1})");
+                        //Debug.WriteLine($"{iterations}:\tSize={floodingPixelsBuffer.GetSize()} ({floodingPixelsBuffer.GetSize() / (double)floodingPixels.Length:P1})");
                     }
 #endif
 
