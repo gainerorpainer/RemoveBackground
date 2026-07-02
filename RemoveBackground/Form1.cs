@@ -260,6 +260,19 @@ namespace RemoveBackground
             return new Point(imageX, imageY);
         }
 
+        private static Rectangle CombineRois(Rectangle a, Rectangle b)
+        {
+            if (a.IsEmpty)
+                return b;
+            if (b.IsEmpty)
+                return a;
+            int left = Math.Min(a.Left, b.Left);
+            int top = Math.Min(a.Top, b.Top);
+            int right = Math.Max(a.Right, b.Right);
+            int bottom = Math.Max(a.Bottom, b.Bottom);
+            return new(left, top, right - left, bottom - top);
+        }
+
         private void MagicWand()
         {
             if (SelectedPoints.Count == 0)
@@ -267,19 +280,17 @@ namespace RemoveBackground
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            // setup vars
-            RawBitmap raw = new((Bitmap)PictureBox_Input.Image);
-            Algorithm.ClearAlphaChannel(raw);
-            Rectangle roi = new(SelectedPoints.First().ImageCoords, new Size(1, 1));
             // run for each
+            Rectangle roi = new(SelectedPoints.First().ImageCoords, new Size(1, 1));
+            var floodFill = new FloodFill.FloodFill((Bitmap)PictureBox_Input.Image, TrackBar_Threshold.Value / 100.0f);
             foreach (SelectedPoint point in SelectedPoints)
             {
-                Rectangle currentRoi = Algorithm.MagicWand(raw, point.ImageCoords, TrackBar_Threshold.Value / 100.0f);
-                roi = Algorithm.CombineRois(roi, currentRoi);
+                Rectangle currentRoi = floodFill.Run(point.ImageCoords);
+                roi = CombineRois(roi, currentRoi);
             }
 
             // crop/invert image
-            Bitmap resultImg = IsInverted ? raw.GetInvertedAndCropped() : raw.GetCropped(roi);
+            Bitmap resultImg = IsInverted ? floodFill.RawImage.IntervertAndCrop() : floodFill.RawImage.Crop(roi);
             PictureBox_Output.Image = resultImg;
 
             Label_ComputeTime.Text = $"Magic wand took {stopwatch.ElapsedMilliseconds} ms";
