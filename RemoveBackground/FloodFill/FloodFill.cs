@@ -30,22 +30,18 @@ namespace RemoveBackground.FloodFill
         public int GetSize() => (WritePos - ReadPos + Capacity) % Capacity;
 
         public bool IsEmpty() => ReadPos == WritePos;
+
+        public (int ReadPos, int WritePos) GetReadWritePositions() => (ReadPos, WritePos);
     }
 
-    internal unsafe class FloodFill
+    internal unsafe class FloodFill(Bitmap input, float threshold)
     {
         // the highest possible color difference == GetColorDifference(/BLACK/, /WHITE/)
         public const int MAX_COLOR_DIFFERENCE = 585_225;
 
-        public readonly RawBitmap RawImage;
+        public readonly RawBitmap RawImage = new(input, clearAlpha: true);
 
-        readonly int AbsThreshold;
-
-        public FloodFill(Bitmap input, float threshold)
-        {
-            RawImage = new(input);
-            AbsThreshold = (int)(MathF.Pow(threshold, 2) * MAX_COLOR_DIFFERENCE);
-        }
+        readonly int AbsThreshold = (int)(MathF.Pow(threshold, 2) * MAX_COLOR_DIFFERENCE);
 
         /// <summary>
         /// Runs the flood fill algorithm (based on color similarity), overwriting pixel values of the bitmap
@@ -64,8 +60,9 @@ namespace RemoveBackground.FloodFill
             int maxY = int.MinValue;
 
             // instead of using C# List to track active pixels, use a ring buffer
-            // size can be estimated roughly by the circumference with a safety factor of 2
-            int[] floodingPixels = new int[10 * (2 * RawImage.Width + 2 * RawImage.Height)];
+            // the area of the flood can be estimated by the circumerence of the image, times 3 (3x3 grid around any active pixel)
+            // however, every pixel roughly creates 3 duplicates in list
+            int[] floodingPixels = new int[3 * 3 * (2 * RawImage.Width + 2 * RawImage.Height)];
 
             // use ptrs in hot section
             fixed (uint* pixels = RawImage.RawData)
@@ -82,13 +79,22 @@ namespace RemoveBackground.FloodFill
                 {
 #if DEBUG
                     iterations++;
-                    if ((iterations % 50000) == (50000 - 1))
-                    {
-                        RawImage.IntervertAndCrop().Save(iterations + ".jpg");
-                    }
 
                     if ((iterations % 50000) == (50000 - 1))
-                    Debug.WriteLine($"Size={floodingPixelsBuffer.GetSize()} ({floodingPixelsBuffer.GetSize() / (double)floodingPixels.Length:P1})");
+                    {
+                        (int read, int write) = floodingPixelsBuffer.GetReadWritePositions();
+                        List<int> indexCopy = [];
+                        while (read != write)
+                        {
+                            int idx = floodingPixelsPtr[read];
+                            indexCopy.Add(idx);
+                            read = (read + 1) % floodingPixels.Length;
+                        }
+                        int numDuplicates = indexCopy.Count - indexCopy.Distinct().Count();
+                        Debug.WriteLine($"Duplicates = {(double)numDuplicates/indexCopy.Count:P1}");
+
+                        Debug.WriteLine($"{iterations}:\tSize={floodingPixelsBuffer.GetSize()} ({floodingPixelsBuffer.GetSize() / (double)floodingPixels.Length:P1})");
+                    }
 #endif
 
                     // pop item from buffer
